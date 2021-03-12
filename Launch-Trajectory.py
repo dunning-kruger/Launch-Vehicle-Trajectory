@@ -14,7 +14,6 @@
 #           rho:   density            kg/m^3
 #           R:     gas constant       N-m/kg-K
 #           d:     drag               N
-#           cD:    coef of drag       unitless
 
 # TODO: coefficient of drag function
 # TODO: thrust vector
@@ -28,7 +27,7 @@ import matplotlib.pyplot as plt
 gamma = 1.4
 R = 287.05287               # gas constant, N-m/kg-K
 g0 = 9.80665                # m/s^2
-RE = 6356766                # radius of the Earth, m
+Re = 6356766                # radius of the Earth, m
 Bs = 1.458e-6               # N-s/m2 K1/2
 S = 110.4                   # K
 azimuth = 45                # degrees
@@ -149,11 +148,6 @@ def atmosphericConditions(altitude):
     return T, P, rho, a, u
 
 
-def calcDrag(s, rho, velocity, cD):
-    drag = 0.5 * rho * cD * s * velocity**2  # N
-    return drag
-
-
 def accX(thrust, drag, mass):
     aX = (thrust - drag) / mass
     return aX
@@ -187,6 +181,11 @@ def odeModelZ(y, t):
     return dzdt
 
 
+def calcDrag(s, rho, velocity, cD):
+    drag = 0.5 * rho * cD * s * velocity**2  # N
+    return drag
+
+
 def calcMass(time):
     massProp = 820
     massInert = 65.6
@@ -198,6 +197,14 @@ def calcMass(time):
     else:
         mass = massInert
     return mass  # kg
+
+
+def calcThrust(time, burnTime):
+    if time < burnTime:
+        thrust = 215250
+    else:
+        thrust = 0
+    return thrust
 
 
 def plotting(time, posX, posZ):
@@ -230,77 +237,44 @@ if __name__ == '__main__':
     velZ = [initialVelZ]
 
     while posZ[-1] > 0:
-        if j < 1.8:
-            thrust = 215250
-            t = [j, j + dt]
-            temp, press, density, acousticSpeed, kinVisc = atmosphericConditions(z0[0])
-
-            # drag
-            dragX = calcDrag(s, density, x0[1], coeffDrag)
-            dragY = calcDrag(s, density, y0[1], coeffDrag)
-            dragZ = calcDrag(s, density, z0[1], coeffDrag)
-
-            # acceleration
-            aX = accX(thrust, dragX, calcMass(t[1]))
-            aY = accY(thrust, dragY, calcMass(t[1]))
-            aZ = accZ(thrust, dragZ, calcMass(t[1]), g0)
-
-            # integration
-            solX = odeint(odeModelX, x0, t)
-            solY = odeint(odeModelY, y0, t)
-            solZ = odeint(odeModelZ, z0, t)
-
-            # update initial values
-            x0 = [solX[1, 0], solX[1, 1]]
-            y0 = [solY[1, 0], solY[1, 1]]
-            z0 = [solZ[1, 0], solZ[1, 1]]
-
-            # output
-            time = np.append([time], t[1])
-            posX = np.append([posX], solX[1, 0])
-            posY = np.append([posY], solY[1, 0])
-            posZ = np.append([posZ], solZ[1, 0])
-            velX = np.append([velX], solX[1, 1])
-            velY = np.append([velY], solY[1, 1])
-            velZ = np.append([velZ], solZ[1, 1])
-
-            j = j + dt
-
+        if j < burnTime:
+            thrust = 50000
         else:
             thrust = 0
-            t = [j, j + dt]
-            temp, press, density, acousticSpeed, kinVisc = atmosphericConditions(z0[0])
 
-            # drag
-            dragX = calcDrag(s, density, x0[1], coeffDrag)
-            dragY = calcDrag(s, density, y0[1], coeffDrag)
-            dragZ = calcDrag(s, density, z0[1], coeffDrag)
+        t = [j, j + dt]
+        temp, press, density, acousticSpeed, kinVisc = atmosphericConditions(z0[0])
 
-            # acceleration
-            aX = accX(thrust, dragX, calcMass(t[1]))
-            aY = accY(thrust, dragY, calcMass(t[1]))
-            aZ = accZ(thrust, dragZ, calcMass(t[1]), g0)
+        # drag
+        dragX = calcDrag(s, density, x0[1], coeffDrag)
+        dragY = calcDrag(s, density, y0[1], coeffDrag)
+        dragZ = calcDrag(s, density, z0[1], coeffDrag)
 
-            # integration
-            solX = odeint(odeModelX, x0, t)
-            solY = odeint(odeModelY, y0, t)
-            solZ = odeint(odeModelZ, z0, t)
+        # acceleration
+        aX = accX(thrust, dragX, calcMass(t[1]))
+        aY = accY(thrust, dragY, calcMass(t[1]))
+        aZ = accZ(thrust, dragZ, calcMass(t[1]), g0)
 
-            # update initial values
-            x0 = [solX[1, 0], solX[1, 1]]
-            y0 = [solY[1, 0], solY[1, 1]]
-            z0 = [solZ[1, 0], solZ[1, 1]]
+        # integration
+        solX = odeint(odeModelX, x0, t)
+        solY = odeint(odeModelY, y0, t)
+        solZ = odeint(odeModelZ, z0, t)
 
-            # output
-            time = np.append([time], t[1])
-            posX = np.append([posX], solX[1, 0])
-            posY = np.append([posY], solY[1, 0])
-            posZ = np.append([posZ], solZ[1, 0])
-            velX = np.append([velX], solX[1, 1])
-            velY = np.append([velY], solY[1, 1])
-            velZ = np.append([velZ], solZ[1, 1])
+        # update initial values
+        x0 = [solX[1, 0], solX[1, 1]]
+        y0 = [solY[1, 0], solY[1, 1]]
+        z0 = [solZ[1, 0], solZ[1, 1]]
 
-            j = j + dt
+        # output
+        time = np.append([time], t[1])
+        posX = np.append([posX], solX[1, 0])
+        posY = np.append([posY], solY[1, 0])
+        posZ = np.append([posZ], solZ[1, 0])
+        velX = np.append([velX], solX[1, 1])
+        velY = np.append([velY], solY[1, 1])
+        velZ = np.append([velZ], solZ[1, 1])
+
+        j = j + dt
 
     outputPosition = np.column_stack((posX, posY, posZ))
     outputVelocity = np.column_stack((velX, velY, velZ))
